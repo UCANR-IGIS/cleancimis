@@ -39,7 +39,7 @@ Download annual compilations of hourly data from CIMIS
 This will download yearly aggregations of hourly data for all CIMIS stations from the CIMIS SFTP server. As of December 2024,
 yearly aggregations are available for 1982-2023. To get a username and password for the CIMIS sftp server, contact CIMIS (see their website).
 
-The files come down as zips (20-25MB) (1982-2022), or annual CSV files (2023). Files will be saved to the data directory.
+The files come down as zips (20-25MB) (1982-2022), or annual CSV files (2023-2024). Files will be saved to the data directory.
 }
 \seealso{
 \code{\link[=cc_dwnhly_mth]{cc_dwnhly_mth()}}

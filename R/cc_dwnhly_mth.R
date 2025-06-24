@@ -60,7 +60,7 @@ cc_dwnhly_mth <- function(month,
   if (!dir.exists(csv_dir)) dir.create(csv_dir, recursive = TRUE)
   if (unzip && !dir.exists(csv_dir)) stop(paste0(csv_dir, " does not exist"))
 
-  if (!require(sftp, quietly = TRUE)) stop("sftp is a required package")
+  if (!requireNamespace(sftp, quietly = TRUE)) stop("sftp is a required package for `cc_dwnhly_mth()`")
   ## remotes::install_github("stenevang/sftp")
 
   if (sftp_user == "") stop("You must provide a username for the sftp server")

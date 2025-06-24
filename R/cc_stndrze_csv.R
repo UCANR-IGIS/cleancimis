@@ -1,4 +1,4 @@
-#' Standardize CSVs and flag suspect values
+#' Standardize hourly CSVs and flag suspect values
 #'
 #' Standardize CSVs and flag suspect values
 #'
@@ -106,11 +106,6 @@ cc_stndrze_csv <- function(year,
           dplyr::select(
             -starts_with("qc")
           ) |>  unique()
-
-        ##xx <- df |> unique()     ## `--` found in numeric colums > converted to NAs
-        # problems(df)
-        # df |> slice(886:900) |> View()
-        # df |> View()
 
         write_rds(df, rds_fn)
 

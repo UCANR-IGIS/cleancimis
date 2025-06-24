@@ -2,7 +2,7 @@
 % Please edit documentation in R/cc_stndrze_csv.R
 \name{cc_stndrze_csv}
 \alias{cc_stndrze_csv}
-\title{Standardize CSVs and flag suspect values}
+\title{Standardize hourly CSVs and flag suspect values}
 \usage{
 cc_stndrze_csv(
   year,

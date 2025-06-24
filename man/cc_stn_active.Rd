@@ -5,15 +5,16 @@
 \title{Return active CIMIS Stations}
 \usage{
 cc_stn_active(
-  data_dir = Sys.getenv("CC_DATADIR"),
   crs = 3310,
+  use_cache = TRUE,
+  data_dir = Sys.getenv("CC_DATADIR"),
   overwrite = FALSE
 )
 }
 \arguments{
-\item{data_dir}{The cache directory}
-
 \item{crs}{The EPSG ID for the returned simple feature point layer}
+
+\item{data_dir}{The cache directory}
 
 \item{overwrite}{Overwrite the saved active stations file}
 }
@@ -24,5 +25,7 @@ A sf point layer containing the active CIMIS stations
 Return active CIMIS Stations
 }
 \details{
-The default value for \code{crs} = 3310 is California Teale Albers.
+This will download the active CIMIS stations and return them as a sf object . The default value for \code{crs} = 3310 is California Teale Albers (NAD83).
+
+As a side effect, the function can also save the active stations as a geojson file.
 }

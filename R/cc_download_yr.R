@@ -1,19 +1,21 @@
-#' Download annual compilations of hourly data from CIMIS
+#' Download annual compilations of data from CIMIS
 #'
-#' Download annual compilations of hourly data from CIMIS
+#' Download annual compilations of data from CIMIS
 #'
-#' @param year year(s), integer
+#' @param year Year(s), integer
+#' @param interval Frequency of observations (daily or hourly)
+#' @param units Imperial or metric units
 #' @param data_dir Data directory
-#' @param overwrite Overwrite files already downloaded
+#' @param overwrite Overwrite downloaded files
 #' @param sftp_user A username for the CIMIS SFTP server
 #' @param sftp_pwd A password for the CIMIS SFTP server
 #' @param unzip Unzip archives when needed, logical
-#' @param stations The station IDs to unzip
+#' @param station The station IDs to unzip
 #' @param keep_zip Keep the zip file, logical
 #'
 #' @details
-#' This will download yearly aggregations of hourly data for all CIMIS stations from the CIMIS SFTP server. As of December 2024,
-#' yearly aggregations are available for 1982-2023. To get a username and password for the CIMIS sftp server, contact CIMIS (see their website).
+#' This will download yearly aggregations of data from the CIMIS SFTP server. As of early 2025,
+#' yearly aggregations are available for 1982-2024. To get a username and password for the CIMIS sftp server, contact CIMIS (see their website).
 #'
 #' The files come down as zips (20-25MB) (1982-2022), or annual CSV files (2023-2024). Files will be saved to the data directory.
 #'
@@ -38,33 +40,56 @@
 
 ## sftp://sftpcimis@sftpcimis.water.ca.gov/pub2/annualMetric/hourlyStns2014.zip
 
-cc_dwnhly_yr <- function(year,
-                         data_dir = Sys.getenv("CC_DATADIR"),
-                         overwrite = FALSE,
-                         sftp_user = Sys.getenv("CIMIS_SFPT_USR"),
-                         sftp_pwd = Sys.getenv("CIMIS_SFPT_PWD"),
-                         unzip = FALSE,
-                         stations = NULL,
-                         keep_zip = TRUE) {
+cc_download_yr <- function(year,
+                           station = NULL,
+                           interval = c("daily", "hourly"),
+                           units = c("imperial", "metric"),
+                           data_dir = Sys.getenv("CC_DATADIR"),
+                           overwrite = FALSE,
+                           sftp_user = Sys.getenv("CIMIS_SFPT_USR"),
+                           sftp_pwd = Sys.getenv("CIMIS_SFPT_PWD"),
+                           unzip = FALSE,
+                           keep_zip = TRUE) {
 
-  if (FALSE %in% (year %in% 1982:2023)) stop("year must be one or more integers between 1982-2022")
+  if (FALSE %in% (year %in% 1982:2024)) stop("year must be one or more integers between 1982-2022")
+
+  interval <- match.arg(interval)
+  units <- match.arg(units)
 
   if(!dir.exists(data_dir)) stop(paste0("Can't find data directory. Please paass a valid directory, or create an environment variable called CC_DATADIR"))
 
-  zip_dir <- file.path(data_dir, "zips", "annualMetric")
+  ## Define some variables that will be used below
+  if (interval == "daily") {
+    fixfn_lst <- list(
+      metric = list(years = c(2016, 2021, 2022), current = "dlymet", shouldbe = "daily"),
+      imperial = list(years = c(2016, 2021, 2022), current = "daily", shouldbe = "daily")
+    )
+  } else if (interval == "hourly") {
+    fixfn_lst <- list(
+      metric = list(years = c(2016, 2021, 2022), current = "hlymet", shouldbe = "hourly"),
+      imperial = list(years = c(2016, 2021, 2022), current = "hlymet", shouldbe = "hourly")
+    )
+  }
+
+  ## Define the subdirectory for the units
+  units_subdir <- paste0("annual", ifelse(units == "metric", "Metric", ""))
+
+  ## Define the directory for the zip files
+  zip_dir <- file.path(data_dir, "zips", units_subdir)
   if (!dir.exists(zip_dir)) dir.create(zip_dir, recursive = TRUE)
 
-  csv_dir <- file.path(data_dir, "csvs", "annualMetric")
-  if (!dir.exists(csv_dir)) dir.create(csv_dir, recursive = TRUE)
-  if (unzip && !dir.exists(csv_dir)) stop(paste0(csv_dir, " does not exist"))
+  ## Define the directory where the raw csv files will go
+  csv_raw_dir <- file.path(data_dir, "csvs_raw", units_subdir)
+  if (!dir.exists(csv_raw_dir)) dir.create(csv_raw_dir, recursive = TRUE)
+  if (unzip && !dir.exists(csv_raw_dir)) stop(paste0(csv_raw_dir, " does not exist"))
 
-  if (!requireNamespace("sftp", quietly = TRUE)) stop("sftp is a required package for `cc_dwnhly_yr`")
+  if (!requireNamespace("sftp", quietly = TRUE)) stop("sftp is a required package")
   ## remotes::install_github("stenevang/sftp")
 
   if (sftp_user == "") stop("You must provide a username for the sftp server")
 
-  if (!is.null(stations)) {
-    if (FALSE %in% (stations %in% 1:270)) stop("station must be one or more integers from 1 to 270")
+  if (!is.null(station)) {
+    if (FALSE %in% (station %in% 1:270)) stop("station must be one or more integers from 1 to 270")
   }
 
   res <- list(zip = character(0), csv = character(0))
@@ -81,7 +106,7 @@ cc_dwnhly_yr <- function(year,
 
   ## Download the zip file (which contains hourly data for one year for all CIMIS stations)
   cimis_sftp <- sftp::sftp_connect(server = "sftpcimis.water.ca.gov",
-                                   folder = "pub2/annualMetric",
+                                   folder = paste0("pub2/", units_subdir),
                                    username = Sys.getenv("CIMIS_SFPT_USR"),
                                    password = Sys.getenv("CIMIS_SFPT_PWD"))
 
@@ -93,13 +118,13 @@ cc_dwnhly_yr <- function(year,
     if (year[i] <= 2022) {
 
       ## There should be a zip file
-      zip_fn <- paste0("hourlyStns", year[i], ".zip")
+      zip_fn <- paste0(interval, "Stns", year[i], ".zip")
       local_zip_fn <- file.path(zip_dir, zip_fn)
 
       if (file.exists(local_zip_fn) && !overwrite) {
         message(crayon::green(paste0(" - Zip file found: ", zip_fn)))
         ok_to_unzip <- TRUE
-        res$zip <- c(res$zip, zip_fn)
+        if (keep_zip) res$zip <- c(res$zip, zip_fn)
 
       } else {
         message(crayon::green(paste0(" - Going to try to download ", zip_fn)))
@@ -110,7 +135,7 @@ cc_dwnhly_yr <- function(year,
         if (as.logical(download_successful)) {
           message(crayon::green(paste0(" - downloaded ", zip_fn)))
           ok_to_unzip <- TRUE
-          res$zip <- c(res$zip, zip_fn)
+          if (keep_zip) res$zip <- c(res$zip, zip_fn)
 
         } else {
           warning(crayon::red(paste0(" - failed to download ", zip_fn)))
@@ -122,40 +147,45 @@ cc_dwnhly_yr <- function(year,
 
         filesinzip <- zip::zip_list(local_zip_fn)[["filename"]]
 
-        if (is.null(stations)) {
+        if (is.null(station)) {
 
           ## Will unzip all of them
           csvs2unzip <- filesinzip
 
           zip::unzip(zipfile = local_zip_fn,
-                     exdir = csv_dir,
+                     exdir = csv_raw_dir,
                      overwrite = TRUE)
 
           message(crayon::green(paste0(" - all csvs unzipped")))
 
+          ## Construct the standardized output CSV file names
+          browser
           if (year[i] %in% c(2016, 2021, 2022)) {
-            csvs_names_final <- paste0(year[i], "hourly", gsub("^hlymet", "", csvs2unzip))
+            csvs_names_final <- paste0(year[i], fixfn_lst[[units]]$shouldbe, gsub(paste0("^", fixfn_lst[[units]]$current), "", csvs2unzip))
           } else {
             csvs_names_final <- csvs2unzip
           }
 
         } else {
 
-          ## Stations Not Null
+          ## station Not Null. Just need to unzip a few.
 
-          if (year[i] %in% c(2016, 2021, 2022)) {
-            csvs2unzip <- paste0("hlymet", sprintf("%03d", stations), ".csv")
-            csvs_names_final <- paste0(year[i], "hourly", sprintf("%03d", stations), ".csv")
+          ## Construct the expected csv file names, and the final names after downloading
+          if (year[i] %in% fixfn_lst[[units]]$years) {
+
+            ## In these years, the csv files did not start with the year.
+            csvs2unzip <- paste0(fixfn_lst[[units]]$current, sprintf("%03d", station), ".csv")
+            csvs_names_final <- paste0(year[i], fixfn_lst[[units]]$shouldbe, sprintf("%03d", station), ".csv")
 
           } else {
-            csvs2unzip <- paste0(year[i], "hourly", sprintf("%03d", stations), ".csv")
+            csvs2unzip <- paste0(year[i], fixfn_lst[[units]]$shouldbe, sprintf("%03d", station), ".csv")
             csvs_names_final <- csvs2unzip
           }
 
           csvs_available_yn <- csvs2unzip %in% filesinzip
 
           if (FALSE %in% (csvs_available_yn)) {
-            message(crayon::magenta(paste0(" - stations missing from ", year[i], ": ",
+            message(crayon::magenta(paste0(" - station(s) missing from ", year[i], ": ",
                                            paste(csvs2unzip[!csvs_available_yn], collapse = ", "))))
 
             csvs2unzip <- csvs2unzip[csvs_available_yn]
@@ -165,58 +195,58 @@ cc_dwnhly_yr <- function(year,
 
           zip::unzip(zipfile = local_zip_fn,
                      files = csvs2unzip,
-                     exdir = csv_dir,
+                     exdir = csv_raw_dir,
                      overwrite = TRUE)
 
-          message(crayon::green(paste0(" - ", length(csvs2unzip), " csvs unzipped")))
+          message(crayon::green(paste0(" - ", length(csvs2unzip), " csv's unzipped")))
+
+        }  ## if station NULL
+
+        ## By this point we have unzipped CSVs
+
+        ## Rename files from 2021=2022 onward to make them match
+        if (year[i] %in% fixfn_lst[[units]]$years) {
+
+          file.rename(from = file.path(csv_raw_dir, csvs2unzip),
+                      to = file.path(csv_raw_dir, csvs_names_final))
+
+          message(crayon::green(paste0(" - ", length(csvs2unzip), " csv files renamed for uniformity")))
 
         }
 
+        res$csv <- c(res$csv, csvs_names_final)
+
+        if (!keep_zip) {
+          unlink(local_zip_fn)
+        }
       }   ## if unzip and ok_to_unzip
 
-      ## Have to rename files from 2021=2022 onward
-      if (year[i] %in% c(2016, 2021, 2022)) {
+    } else if (year[i] >= 2023 && year[i] <= 2024 ) {
 
-        file.rename(from = file.path(csv_dir, csvs2unzip),
-                    to = file.path(csv_dir, csvs_names_final))
+      ## For 2023 and 2024, there are no zip files,  just an individual csv file for each station
 
-        message(crayon::green(paste0(" - ", length(csvs2unzip), " csv files renamed for uniformity")))
+      if (is.null(station)) {
 
-      }
-
-
-      res$csv <- c(res$csv, csvs_names_final)
-
-      if (!keep_zip) {
-        unlink(local_zip_fn)
-      }
-
-    } else if (year[i] == 2023) {
-
-      ## No zip, these are just csvs
-
-      if (is.null(stations)) {
-
-        ## We want all 2023hourlys*.csv files from the directory listing
-        csvs_needed <- grep(paste0(year[i], "hourly"), annual_metric_ftp_fn, value = TRUE)
+        ## We want all csv files from the directory listing that match the pattern (e.g., 2023hourly*.csv)
+        csvs_needed <- grep(paste0(year[i], fixfn_lst[[units]]$shouldbe), annual_metric_ftp_fn, value = TRUE)
 
       } else {
 
-        ## Stations are provided. Construct a list of CSVs filenames
-        csvs_needed <- paste0(year[i], "hourly", sprintf("%03d", stations), ".csv")
+        ## station are provided. Construct a list of CSVs filenames
+        csvs_needed <- paste0(year[i], fixfn_lst[[units]]$shouldbe, sprintf("%03d", station), ".csv")
 
         ## If any are missing, show a message
         if (FALSE %in% (csvs_needed %in% annual_metric_ftp_fn)) {
-          message(crayon::magenta(paste0(" - stations missing from ", year[i], ": ",
+          message(crayon::magenta(paste0(" - station(s) missing from ", year[i], ": ",
                                          paste(csvs_needed[!csvs_needed %in% annual_metric_ftp_fn],
                                                collapse = ", "))))
           csvs_needed <- csvs_needed[csvs_needed %in% annual_metric_ftp_fn]
         }
 
-      }  ## stations not null
+      }  ## station not null
 
       ## See what has already been downloaded
-      csvs_needed_alrdygot_yn <- csvs_needed %in% list.files(path = csv_dir, pattern = ".csv$")
+      csvs_needed_alrdygot_yn <- csvs_needed %in% list.files(path = csv_raw_dir, pattern = ".csv$")
 
       if (sum(csvs_needed_alrdygot_yn) > 0) {
         message(crayon::green(paste0(" - ", sum(csvs_needed_alrdygot_yn),
@@ -225,8 +255,8 @@ cc_dwnhly_yr <- function(year,
 
       if (FALSE %in% csvs_needed_alrdygot_yn) {
         download_successful <- sftp::sftp_download(file = csvs_needed[!csvs_needed_alrdygot_yn],
-                                             tofolder = csv_dir,
-                                             sftp_connection = cimis_sftp)
+                                                   tofolder = csv_raw_dir,
+                                                   sftp_connection = cimis_sftp)
       }
 
       res$csv <- c(res$csv, csvs_needed)
@@ -246,7 +276,7 @@ cc_dwnhly_yr <- function(year,
 
 cc_sftp_files <- function(sftp_con) {
 
-  if (!requireNamespace("sftp")) stop("sftp is a required package for `cc_sftp_files()`")
+  if (!requireNamespace("sftp")) stop("sftp is a required package")
 
   files_on_server_rds <- file.path(tempdir(),
                                      paste0(gsub("\\.", "-", sftp_con$server),

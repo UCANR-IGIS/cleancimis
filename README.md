@@ -18,8 +18,7 @@ multiple stations.
 You can install the development version of cleancimis with:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
-pak::install_github()
+remotes::install_github("ucanr-igis/cleancimis")
 ```
 
 ## Workflow

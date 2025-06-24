@@ -1,7 +1,7 @@
 Package: cleancimis
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Date: 2024-12-17
+Title: Download and clean CIMIS station data
+Version: 0.1.1
+Date: 2025-06-23
 Authors@R: c(
     person("Andy", "Lyons", , "andlyons@ucanr.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-7505-6709")),
@@ -11,8 +11,8 @@ Authors@R: c(
 Description: Downloads and cleans weather station data from the CIMIS
     network.
 License: GPL (>= 3)
-URL: NA
-BugReports: NA
+URL: https://github.com/ucanr-igis/cleancimis/
+BugReports: https://github.com/ucanr-igis/cleancimis/issues/
 Depends: 
     R (>= 4.1.0)
 Imports: 
@@ -29,7 +29,6 @@ Imports:
     purrr,
     readr,
     sf,
-    sftp,
     stats,
     stringr,
     terra,
@@ -39,6 +38,8 @@ Imports:
     tsibble,
     zip,
     zoo
+Suggests:
+    sftp
 Encoding: UTF-8
 LazyData: TRUE
 Roxygen: list(markdown = TRUE)

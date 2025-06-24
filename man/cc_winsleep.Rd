@@ -20,5 +20,5 @@ This function can be run before starting a lengthy process, to prevent
 windows from going to sleep when there are no mouse or keyboard interactions (i.e., 'idle').
 Setting the number of minutes to '0' disables going to sleep completely.
 
-This function is i) for windows users only, and ii) only when the computer is plugged in.
+Note that this function is i) for windows only, and ii) only sets the sleep setting that's in effect when the computer is plugged in.
 }
